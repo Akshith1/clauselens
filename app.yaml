@@ -1,0 +1,15 @@
+# Databricks App runtime configuration.
+command: ["streamlit", "run", "src/clauselens/app/streamlit_app.py", "--server.headless", "true"]
+env:
+  - name: CL_BACKEND
+    value: databricks
+  - name: PYTHONPATH
+    value: src
+  - name: CL_GATEWAY_ENDPOINT
+    valueFrom: llm
+  - name: CL_CATALOG
+    value: clauselens_dev
+  - name: CL_SCHEMA
+    value: policies
+  - name: CL_VS_ENDPOINT
+    value: clauselens-vs

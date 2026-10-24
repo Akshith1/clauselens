@@ -1,0 +1,17 @@
+[
+  {
+    "file": "CL-HO-01.txt",
+    "form_number": "CL-HO-01",
+    "edition": "10 26",
+    "line_of_business": "homeowners",
+    "title": "Sample Homeowners Policy - Special Form"
+  },
+  {
+    "file": "CL-HO-E1.txt",
+    "form_number": "CL-HO-E1",
+    "edition": "10 26",
+    "line_of_business": "homeowners",
+    "title": "Water Backup and Sump Discharge Coverage Endorsement",
+    "endorsement": true
+  }
+]

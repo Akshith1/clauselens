@@ -1,0 +1,14 @@
+# Databricks App running the Streamlit UI. Deploys the whole repo (the app imports the
+# clauselens package from src/). Runtime command and env are in app.yaml at the repo root.
+resources:
+  apps:
+    clauselens_app:
+      name: clauselens
+      description: Clause-cited insurance coverage Q&A
+      source_code_path: ../
+      resources:
+        - name: llm
+          description: AI Gateway endpoint in front of Groq
+          serving_endpoint:
+            name: ${resources.model_serving_endpoints.clauselens_llm.name}
+            permission: CAN_QUERY

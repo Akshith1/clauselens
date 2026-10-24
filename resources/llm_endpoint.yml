@@ -1,0 +1,36 @@
+# Serving endpoint that fronts Groq (OpenAI-compatible API) as an external model, with
+# AI Gateway for governance. The app calls this endpoint; the Groq key stays in a secret.
+# Check guardrail options available in your workspace region under Serving → AI Gateway.
+resources:
+  model_serving_endpoints:
+    clauselens_llm:
+      name: ${var.llm_endpoint}
+      config:
+        served_entities:
+          - name: groq-llama
+            external_model:
+              name: llama-3.3-70b-versatile
+              provider: openai
+              task: llm/v1/chat
+              openai_config:
+                openai_api_base: https://api.groq.com/openai/v1
+                openai_api_key: "{{secrets/${var.groq_secret_scope}/groq-api-key}}"
+      ai_gateway:
+        usage_tracking_config:
+          enabled: true
+        inference_table_config:
+          enabled: true
+          catalog_name: ${var.catalog}
+          schema_name: ${var.schema}
+          table_name_prefix: llm_payloads
+        rate_limits:
+          - calls: 60
+            key: user
+            renewal_period: minute
+        guardrails:
+          input:
+            pii:
+              behavior: BLOCK
+          output:
+            pii:
+              behavior: BLOCK

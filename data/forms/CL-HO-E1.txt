@@ -1,0 +1,21 @@
+CL-HO-E1 (10 26)
+WATER BACKUP AND SUMP DISCHARGE COVERAGE ENDORSEMENT
+This is a synthetic sample endorsement written for the ClauseLens project. It is not a real insurance endorsement.
+THIS ENDORSEMENT CHANGES THE POLICY. PLEASE READ IT CAREFULLY.
+This endorsement modifies insurance provided under the following:
+CL-HO-01 SAMPLE HOMEOWNERS POLICY - SPECIAL FORM
+
+SCHEDULE
+A. Limit Of Insurance for this endorsement: $10,000 per "occurrence".
+
+ENDORSEMENT PROVISIONS
+A. Coverage
+1. Paragraph A.2.b. in Section I - Exclusions is deleted.
+2. The following is added to Section I - Perils Insured Against, Paragraph B.:
+a. Water or waterborne material which backs up through sewers or drains or which overflows or is discharged from a sump, sump pump or related equipment, even if the overflow or discharge results from mechanical breakdown.
+B. Limit
+1. The most we will pay for loss covered by this endorsement is the limit shown in the Schedule, regardless of the number of locations or the number of "occurrences" during a single day.
+C. Deductible
+1. A deductible of $500 applies to each loss covered by this endorsement. No other deductible applies to the same loss.
+D. Exclusion
+1. We do not cover loss caused by your negligence in failing to maintain a sump pump in working condition.

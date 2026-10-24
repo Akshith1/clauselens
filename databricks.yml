@@ -1,0 +1,33 @@
+# Databricks Asset Bundle for ClauseLens.
+#   databricks bundle validate -t dev
+#   databricks bundle deploy -t dev
+#   databricks bundle run ingest_forms -t dev
+bundle:
+  name: clauselens
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog for ClauseLens data
+    default: clauselens_dev
+  schema:
+    description: Schema holding the clauses table and index
+    default: policies
+  vs_endpoint:
+    description: Vector Search endpoint name
+    default: clauselens-vs
+  groq_secret_scope:
+    description: Secret scope holding the Groq API key (key name "groq-api-key")
+    default: clauselens
+  llm_endpoint:
+    description: Serving endpoint (with AI Gateway) that fronts Groq
+    default: clauselens-llm
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-0000000000000000.0.azuredatabricks.net   # replace with your workspace URL

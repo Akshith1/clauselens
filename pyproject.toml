@@ -1,0 +1,38 @@
+[project]
+name = "clauselens"
+version = "0.1.0"
+description = "Clause-cited insurance coverage Q&A agent on Azure Databricks"
+authors = [{ name = "Rajesh Vasa" }]
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "langgraph>=0.2",
+    "groq>=0.9",
+    "pypdf>=4.0",
+    "python-dotenv>=1.0",
+    "streamlit>=1.36",
+]
+
+[project.optional-dependencies]
+local = ["chromadb>=0.5"]
+databricks = ["databricks-sdk>=0.30", "databricks-vectorsearch>=0.40", "openai>=1.40"]
+eval = ["mlflow>=3.1"]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clauselens"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

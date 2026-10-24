@@ -1,0 +1,66 @@
+CL-HO-01 (10 26)
+SAMPLE HOMEOWNERS POLICY - SPECIAL FORM
+This is a synthetic sample form written for the ClauseLens project. It is not a real insurance policy.
+
+DECLARATIONS
+A. Policy Period: 12 months from the effective date shown on the policy schedule.
+B. Limits Of Insurance
+1. Coverage A - Dwelling: the limit shown on the policy schedule.
+2. Coverage B - Other Structures: 10% of the Coverage A limit.
+3. Coverage C - Personal Property: 50% of the Coverage A limit.
+4. Coverage D - Loss Of Use: 20% of the Coverage A limit.
+C. Deductible: $1,000 per "occurrence" unless a different amount is shown on the policy schedule.
+
+DEFINITIONS
+A. "You" and "your" mean the named insured shown on the policy schedule and a spouse who lives in the same household.
+B. "Insured" means you and residents of your household who are your relatives.
+C. "Occurrence" means an accident, including continuous or repeated exposure to substantially the same general harmful conditions, which results in property damage during the policy period.
+D. "Residence premises" means the one-family dwelling where you reside and which is shown on the policy schedule.
+E. "Flood" means a general and temporary condition of partial or complete inundation of normally dry land from overflow of inland or tidal waters or from surface water.
+
+SECTION I - PROPERTY COVERAGES
+A. Coverage A - Dwelling
+1. We cover the dwelling on the "residence premises", including structures attached to the dwelling.
+2. We cover materials and supplies located on or next to the "residence premises" used to construct, alter or repair the dwelling.
+B. Coverage C - Personal Property
+1. We cover personal property owned or used by an "insured" while it is anywhere in the world.
+2. Special limits apply to the following property:
+a. $200 on money, bank notes and coins.
+b. $1,500 on jewelry, watches and furs for loss by theft.
+c. $2,500 on firearms for loss by theft.
+
+SECTION I - PERILS INSURED AGAINST
+A. Coverage A - Dwelling
+We insure against direct physical loss to property described in Coverage A unless the loss is excluded in Section I - Exclusions.
+B. Coverage C - Personal Property
+We insure for direct physical loss to property described in Coverage C caused by any of the following perils unless the loss is excluded in Section I - Exclusions:
+1. Fire or lightning.
+2. Windstorm or hail.
+3. Theft, including attempted theft.
+4. Sudden and accidental discharge or overflow of water or steam from within a plumbing, heating or air conditioning system or from a household appliance.
+5. Freezing of a plumbing, heating or air conditioning system, but only if you have used reasonable care to maintain heat in the building.
+
+SECTION I - EXCLUSIONS
+A. We do not insure for loss caused directly or indirectly by any of the following. Such loss is excluded regardless of any other cause or event contributing concurrently or in any sequence to the loss.
+1. Earth Movement, meaning earthquake, landslide, mudflow or sinkhole.
+2. Water, meaning:
+a. "Flood", waves, tidal water or overflow of any body of water;
+b. Water or waterborne material which backs up through sewers or drains or which overflows or is discharged from a sump, sump pump or related equipment;
+c. Water below the surface of the ground, including water which seeps or leaks through a building, foundation or driveway.
+3. Neglect, meaning neglect of an "insured" to use all reasonable means to save and preserve property at and after the time of a loss.
+4. Intentional Loss, meaning any loss arising out of any act an "insured" commits with the intent to cause a loss.
+B. We do not insure for loss to property described in Coverage A caused by:
+1. Wear and tear, deterioration, mold, or mechanical breakdown.
+2. Settling, shrinking, bulging or expansion of foundations, walls, floors or roofs.
+
+SECTION I - CONDITIONS
+A. Duties After Loss
+In case of a loss to covered property, you must:
+1. Give prompt notice to us or our agent.
+2. Protect the property from further damage and make reasonable repairs.
+3. Send us a signed, sworn proof of loss within 60 days after our request.
+B. Loss Settlement
+1. Covered losses to the dwelling are settled at replacement cost without deduction for depreciation, up to the Coverage A limit.
+2. Covered losses to personal property are settled at actual cash value at the time of loss.
+C. Suit Against Us
+No action can be brought against us unless there has been full compliance with all of the terms under Section I of this policy and the action is started within two years after the date of loss.
