@@ -8,3 +8,4 @@ __pycache__/
 data/chroma/
 data/forms/private/
 mlruns/
+data/eval_results.json
