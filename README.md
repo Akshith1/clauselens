@@ -28,10 +28,10 @@ form says. If the documents don't support an answer, it says so instead of guess
         │
         ▼
  Coverage agent (LangGraph)
-   1. classify question  (coverage / definition / limit / out-of-scope)
+   1. classify question  (coverage / definition / limit / condition / out-of-scope)
    2. locate clauses     (structure-aware retrieval)
    3. resolve definitions
-   4. draft answer       (Llama via Groq)
+   4. draft answer       (open model via Groq)
    5. endorsement check
    6. citation audit     (unsupported claims → removed or refusal)
         │
@@ -51,6 +51,21 @@ form says. If the documents don't support an answer, it says so instead of guess
 `CL_BACKEND=local|databricks` switches backends; the agent code is the same in both.
 
 Design details: [docs/DESIGN.md](docs/DESIGN.md)
+
+## Results
+
+Evaluated on the 14-question set in `src/clauselens/eval/questions.jsonl`, run locally against
+the sample forms (`python -m clauselens.eval.run`):
+
+| Metric | Score | CI threshold |
+|---|---|---|
+| Verdict accuracy | 14/14 (1.00) | 0.75 |
+| Citation recall (expected clause cited) | 1.00 | 0.70 |
+| Out-of-scope refusals | 1/1 | 1.00 |
+| Endorsement effect detected | 1/1 | 1.00 |
+
+Plus 21 unit tests covering the parser, clause stores, citation audit and agent graph
+(no API key needed). Model answers vary slightly between runs, so scores can move a little.
 
 ## Status
 
@@ -79,6 +94,11 @@ pytest && ruff check .                                 # tests (no API key neede
 ```
 
 Set `CL_LOCAL_STORE=memory` in `.env` to skip Chroma and embeddings entirely.
+
+The Groq model is configurable with `CL_GROQ_MODEL` in `.env` (default
+`llama-3.3-70b-versatile`; `openai/gpt-oss-120b` and `llama-3.1-8b-instant` also work).
+The agent only depends on a small LLM interface (`agent/llm.py`), so other providers can be
+added as another client class.
 
 ## Deploy to Azure Databricks
 
