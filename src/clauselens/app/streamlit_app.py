@@ -140,7 +140,7 @@ def test_results_page() -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="ClauseLens", page_icon="🔎", layout="centered")
+    st.set_page_config(page_title="ClauseLens", page_icon="🔎", layout="wide")
     page = st.sidebar.radio("View", ["Ask ClauseLens", "Test results"], horizontal=True)
     if page == "Test results":
         test_results_page()
