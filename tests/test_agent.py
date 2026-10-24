@@ -108,3 +108,32 @@ def test_limit_question_includes_endorsement_deductible(store):
         "search_query": "most we will pay", "question": "What is the most I can recover?"})
     texts = " ".join(r.full_text for r in picked)
     assert "$500" in texts and "$10,000" in texts
+
+
+def test_llm_retries_after_rate_limit(monkeypatch):
+    from clauselens.agent import llm as llm_mod
+
+    class RateLimited(Exception):
+        status_code = 429
+
+    class Response:
+        class _Choice:
+            class message:  # noqa: N801
+                content = '{"ok": true}'
+        choices = [_Choice]
+
+    calls = {"n": 0}
+
+    class Client(llm_mod._ChatJSON):
+        model = "test"
+
+        def _create(self, messages, json_mode):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise RateLimited("Rate limit reached ... Please try again in 1.5s.")
+            return Response()
+
+    monkeypatch.setattr(llm_mod.time, "sleep", lambda s: None)
+    assert Client().complete_json("system", "user") == {"ok": True}
+    assert calls["n"] == 3
+    assert llm_mod.retry_delay(RateLimited("try again in 1.5525s"), 0) == 2.0525
