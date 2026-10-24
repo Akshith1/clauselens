@@ -53,6 +53,8 @@ def test_endorsement_modifies_and_changes(forms):
     add = _clause(endorsement, SectionType.ENDORSEMENT, "A.2").change
     assert add.action == EndorsementAction.ADDS
     assert add.target_section == SectionType.INSURING_AGREEMENT
+    assert _clause(endorsement, SectionType.ENDORSEMENT, "C.1").change.action \
+        == EndorsementAction.LIMITS
     assert _clause(endorsement, SectionType.ENDORSEMENT, "B.1").change.action \
         == EndorsementAction.LIMITS
 

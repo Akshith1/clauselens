@@ -10,7 +10,7 @@ dependencies = [
     "groq>=0.9",
     "pypdf>=4.0",
     "python-dotenv>=1.0",
-    "streamlit>=1.36",
+    "streamlit>=1.50",
 ]
 
 [project.optional-dependencies]

@@ -21,7 +21,7 @@ _DELETE = re.compile(_PARAGRAPH + r"\s+(?:in|of)\s+" + _SECTION + r"\s+is\s+dele
 _REPLACE = re.compile(_PARAGRAPH + r"\s+(?:in|of)\s+" + _SECTION + r"\s+is\s+replaced", re.I)
 _ADD = re.compile(r"following\s+is\s+added\s+to\s+" + _SECTION
                   + r"(?:,\s*" + _PARAGRAPH + r")?\s*:", re.I)
-_LIMIT = re.compile(r"\bthe most we will pay\b", re.I)
+_LIMIT = re.compile(r"\bthe most we will pay\b|\bdeductible of\b|\bdeductible applies\b", re.I)
 
 
 def parse_modifies(lines: list[str], known_forms: list[str]) -> list[str]:

@@ -5,6 +5,15 @@ from __future__ import annotations
 import streamlit as st
 
 from clauselens.config import get_settings
+from clauselens.eval.scoring import (
+    THRESHOLDS,
+    expected_label,
+    load_questions,
+    load_results,
+    run_one,
+    save_results,
+    setup_label,
+)
 from clauselens.factory import build_agent
 from clauselens.models import CoverageAnswer, Verdict
 from clauselens.parsing.loader import load_catalog
@@ -63,8 +72,79 @@ def _render(answer: CoverageAnswer) -> None:
                 st.markdown(f"**{term}**: {_md(text)}")
 
 
+METRIC_LABELS = {
+    "verdict_match": "Correct answer",
+    "citation_recall": "Right clause cited",
+    "refusal_correct": "Refuses off-topic",
+    "endorsement_detected": "Spots add-on changes",
+}
+VERDICT_WORDS = {"covered": "Covered", "not_covered": "Not covered", "depends": "Depends",
+                 "cannot_determine": "Can't determine"}
+
+
+def _clause_cell(recall: float | None) -> str:
+    if recall is None:
+        return "—"
+    return "Yes" if recall >= 1.0 else ("No" if recall == 0 else f"{recall:.0%}")
+
+
+def _results_table(rows: list[dict]) -> None:
+    st.dataframe(
+        [{"#": i, "Question": r["question"], "Policy": r["setup"], "Expected": r["expected"],
+          "ClauseLens said": VERDICT_WORDS.get(r["verdict"], r["verdict"]),
+          "Right clause": _clause_cell(r["citation_recall"]),
+          "Result": "✅ Pass" if r["passed"] else "❌ Fail"}
+         for i, r in enumerate(rows, 1)],
+        hide_index=True, width="stretch")
+
+
+def test_results_page() -> None:
+    st.title("Test results")
+    st.caption("14 questions with known correct answers, run through ClauseLens to check it "
+               "answers correctly and cites the right clause.")
+    questions = load_questions()
+    results = load_results()
+
+    if results:
+        rows = results["rows"]
+        passed = sum(r["passed"] for r in rows)
+        st.markdown(f"### {passed} of {len(rows)} passed")
+        st.caption(f"Last run: {results['run_at']} · model: {results['model']}")
+        cols = st.columns(len(results["summary"]))
+        for col, (name, value) in zip(cols, results["summary"].items(), strict=True):
+            col.metric(METRIC_LABELS.get(name, name), f"{value:.0%}",
+                       help=f"Minimum required: {THRESHOLDS[name]:.0%}")
+        _results_table(rows)
+        with st.expander("See each answer"):
+            for i, r in enumerate(rows, 1):
+                st.markdown(f"**{i}. {r['question']}** ({r['setup']})")
+                st.caption(_md(r["answer"]))
+    else:
+        st.info("No test run yet. Click the button below, or run "
+                "`python -m clauselens.eval.run` in a terminal.")
+        st.dataframe([{"#": i, "Question": q["question"], "Policy": setup_label(q),
+                       "Expected": expected_label(q)} for i, q in enumerate(questions, 1)],
+                     hide_index=True, width="stretch")
+
+    st.divider()
+    if st.button(f"Run all {len(questions)} questions now", type="primary"):
+        progress = st.progress(0.0, text="Starting…")
+        rows = []
+        for i, q in enumerate(questions, 1):
+            progress.progress((i - 1) / len(questions), text=f"Question {i} of {len(questions)}: "
+                                                            f"{q['question']}")
+            rows.append(run_one(_agent(), q))
+        progress.progress(1.0, text="Done")
+        save_results(rows, model=get_settings().groq_model)
+        st.rerun()
+
+
 def main() -> None:
     st.set_page_config(page_title="ClauseLens", page_icon="🔎", layout="centered")
+    page = st.sidebar.radio("View", ["Ask ClauseLens", "Test results"], horizontal=True)
+    if page == "Test results":
+        test_results_page()
+        return
     st.title("ClauseLens")
     st.caption("Clause-cited answers about insurance policy wording. "
                "Informational only; not a coverage determination.")
@@ -83,7 +163,7 @@ def main() -> None:
         st.divider()
         st.markdown("**Try asking**")
         for example in EXAMPLES:
-            if st.button(example, use_container_width=True):
+            if st.button(example, width="stretch"):
                 st.session_state["pending"] = example
 
     history = st.session_state.setdefault("history", [])

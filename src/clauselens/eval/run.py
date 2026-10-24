@@ -9,11 +9,14 @@ from __future__ import annotations
 import argparse
 import sys
 
+from clauselens.config import get_settings
 from clauselens.eval.scoring import (
     SCORERS,
     THRESHOLDS,
     answer_to_dict,
     load_questions,
+    run_one,
+    save_results,
     summarize,
 )
 from clauselens.factory import build_agent
@@ -22,12 +25,10 @@ from clauselens.factory import build_agent
 def run_plain(agent, questions: list[dict]) -> list[dict]:
     rows = []
     for q in questions:
-        output = answer_to_dict(agent.ask(q["question"], q["forms"], q["endorsements"]))
-        row = {"id": q["id"], "verdict": output["verdict"]}
-        row |= {name: fn(output, q) for name, fn in SCORERS.items()}
+        row = run_one(agent, q)
         rows.append(row)
-        print(f"{q['id']:<22} {output['verdict']:<17} "
-              + "  ".join(f"{k}={v}" for k, v in row.items() if k in SCORERS and v is not None))
+        print(f"{q['id']:<22} {row['verdict']:<17} "
+              + "  ".join(f"{k}={row[k]}" for k in SCORERS if row[k] is not None))
     return rows
 
 
@@ -60,7 +61,10 @@ def main() -> None:
     args = parser.parse_args()
 
     agent, questions = build_agent(), load_questions()
-    summary = summarize(run_plain(agent, questions))
+    rows = run_plain(agent, questions)
+    summary = summarize(rows)
+    saved = save_results(rows, model=get_settings().groq_model)
+    print(f"\nResults saved to {saved} (shown on the app's Test results page)")
     print("\nSummary")
     failed = False
     for name, value in summary.items():

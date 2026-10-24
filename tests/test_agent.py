@@ -99,3 +99,12 @@ def test_condition_questions_search_conditions(store):
     assert answer.question_type == QuestionType.CONDITION
     assert answer.citations[0].section_heading == "Section I - Conditions"
     assert answer.citations[0].clause_id == "A.3"
+
+
+def test_limit_question_includes_endorsement_deductible(store):
+    agent = CoverageAgent(store, FakeLLM())
+    picked = agent._endorsement_candidates({
+        "clauses": [], "endorsements": ["CL-HO-E1"], "question_type": QuestionType.LIMIT,
+        "search_query": "most we will pay", "question": "What is the most I can recover?"})
+    texts = " ".join(r.full_text for r in picked)
+    assert "$500" in texts and "$10,000" in texts

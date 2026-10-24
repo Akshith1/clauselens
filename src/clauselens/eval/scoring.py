@@ -84,3 +84,54 @@ def summarize(rows: list[dict]) -> dict[str, float]:
         if values:
             summary[name] = sum(float(v) for v in values) / len(values)
     return summary
+
+
+# ---- running and saving results (used by the CLI and the app's Test results page) ----
+
+EXPECTED_LABEL = {
+    "covered": "Covered", "not_covered": "Not covered", "depends": "Depends",
+    "cannot_determine": "Can't determine",
+}
+
+
+def setup_label(q: dict) -> str:
+    forms = ", ".join(q["forms"])
+    return forms + (f" + {', '.join(q['endorsements'])}" if q["endorsements"] else "")
+
+
+def expected_label(q: dict) -> str:
+    return " or ".join(EXPECTED_LABEL.get(v, v) for v in q["expected_verdict"])
+
+
+def run_one(agent, q: dict) -> dict:
+    """Ask one question and score it. Returns a flat, JSON-safe row."""
+    output = answer_to_dict(agent.ask(q["question"], q["forms"], q["endorsements"]))
+    row = {"id": q["id"], "question": q["question"], "setup": setup_label(q),
+           "expected": expected_label(q), "verdict": output["verdict"],
+           "answer": output["answer"]}
+    row |= {name: fn(output, q) for name, fn in SCORERS.items()}
+    checks = [row[name] for name in SCORERS if row[name] is not None]
+    row["passed"] = all(float(c) >= 1.0 for c in checks)
+    return row
+
+
+def save_results(rows: list[dict], model: str, path: Path | None = None) -> Path:
+    from datetime import datetime
+
+    from clauselens.config import REPO_ROOT
+
+    path = path or REPO_ROOT / "data" / "eval_results.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"run_at": datetime.now().strftime("%Y-%m-%d %H:%M"), "model": model,
+               "summary": summarize(rows), "rows": rows}
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return path
+
+
+def load_results(path: Path | None = None) -> dict | None:
+    from clauselens.config import REPO_ROOT
+
+    path = path or REPO_ROOT / "data" / "eval_results.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))

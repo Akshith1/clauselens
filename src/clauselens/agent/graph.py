@@ -187,7 +187,9 @@ class CoverageAgent:
             # answer or when the question is about limits.
             if targeted or state.get("question_type") == QuestionType.LIMIT:
                 for record in clauses:
-                    if record.section_type == SectionType.DECLARATIONS.value:
+                    change = record.endorsement_change()
+                    is_limit = change is not None and change.action == EndorsementAction.LIMITS
+                    if record.section_type == SectionType.DECLARATIONS.value or is_limit:
                         picked.setdefault(record.record_id, record)
         return _most_specific(list(picked.values()))
 

@@ -1,6 +1,6 @@
 # Runtime dependencies for the Databricks App (local development uses pyproject.toml).
 langgraph>=0.2
-streamlit>=1.36
+streamlit>=1.50
 databricks-sdk>=0.30
 databricks-vectorsearch>=0.40
 openai>=1.40
