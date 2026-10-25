@@ -1,6 +1,6 @@
 # ClauseLens
 
-**Clause-cited coverage answers for insurance policies, built on Azure Databricks.**
+**Clause-cited coverage answers for insurance policies, built on Databricks.**
 
 ClauseLens answers coverage questions such as *"Is sewer backup covered under this homeowners
 policy with endorsement HO 04 95?"*. It answers from the policy text itself, cites the
@@ -20,6 +20,24 @@ form says. If the documents don't support an answer, it says so instead of guess
 | Endorsements | An override check compares the base-form answer with attached endorsements and reports when an endorsement adds, removes, or limits coverage. |
 | Defined terms | Terms in quotes ("occurrence", "insured") are resolved against the Definitions section and shown with the answer. |
 | Exclusions | Always retrieved for coverage questions, since that's where most coverage misses happen. |
+| Your own policy | Pick a policy and ask "when does my policy expire?" or "what will my renewal cost?". Answers come from the policy record, fetched through a policy API, and cite each field used. |
+
+## Policy records
+
+Besides the policy wording, ClauseLens can answer questions about a customer's own policy:
+expiration date, renewal premium, next payment, status, deductible, which endorsements are
+attached. Picking a policy in the sidebar also selects that policy's form and endorsements,
+so coverage questions are answered against the right wording.
+
+- Records come from a **policy system** behind a small interface (`policies/records.py`):
+  a JSON file (default), an HTTP policy API, or a Unity Catalog table on Databricks.
+- `python -m clauselens.policies.api` runs a sample policy API on port 8600; set
+  `CL_POLICY_SOURCE=http` to have ClauseLens fetch records through it. In a company, point
+  `CL_POLICY_API_URL` at the existing policy service instead.
+- The model only restates values from the record (cited as `[P1]`, `[P2]` …); the citation
+  audit removes any sentence that doesn't cite a field. It never calculates premiums.
+- The three records in `data/policies/sample_policies.json` are synthetic sample data.
+  Quoting new insurance is out of scope.
 
 ## Architecture
 
@@ -28,7 +46,8 @@ form says. If the documents don't support an answer, it says so instead of guess
         │
         ▼
  Coverage agent (LangGraph)
-   1. classify question  (coverage / definition / limit / condition / out-of-scope)
+   1. classify question  (coverage / definition / limit / condition / account / out-of-scope)
+      └─ account questions → policy record lookup (policy API) → cited answer
    2. locate clauses     (structure-aware retrieval)
    3. resolve definitions
    4. draft answer       (open model via Groq)
@@ -39,7 +58,7 @@ form says. If the documents don't support an answer, it says so instead of guess
  Clause store ← structure parser ← policy forms (data/forms)
 ```
 
-| Layer | Local | Azure Databricks |
+| Layer | Local | Databricks |
 |---|---|---|
 | Clause store / retrieval | Chroma | Unity Catalog Delta table + Databricks Vector Search |
 | LLM | Groq, key in `.env` | Groq through Databricks AI Gateway (guardrails, usage logging) |
@@ -54,8 +73,11 @@ Design details: [docs/DESIGN.md](docs/DESIGN.md)
 
 ## Results
 
-Evaluated on the 14-question set in `src/clauselens/eval/questions.jsonl`, run locally against
-the sample forms (`python -m clauselens.eval.run`):
+The question set in `src/clauselens/eval/questions.jsonl` has 20 questions: 14 about the
+policy wording and 6 about policy records (checked for the right dates and amounts). Run it
+with `python -m clauselens.eval.run` or from the app's Test results page.
+
+Results on the 14 policy-wording questions, run locally against the sample forms:
 
 | Metric | Score | CI threshold |
 |---|---|---|
@@ -64,8 +86,8 @@ the sample forms (`python -m clauselens.eval.run`):
 | Out-of-scope refusals | 1/1 | 1.00 |
 | Endorsement effect detected | 1/1 | 1.00 |
 
-Plus 21 unit tests covering the parser, clause stores, citation audit and agent graph
-(no API key needed). Model answers vary slightly between runs, so scores can move a little.
+Plus 31 unit tests covering the parser, clause stores, citation audit, agent graph and
+policy-record lookup (no API key needed). Model answers vary slightly between runs, so scores can move a little.
 
 ## Status
 
@@ -73,9 +95,10 @@ Plus 21 unit tests covering the parser, clause stores, citation audit and agent 
 - [x] Clause stores: in-memory BM25, Chroma, Databricks Vector Search
 - [x] Coverage agent (LangGraph) with endorsement override check and citation audit
 - [x] Streamlit UI
+- [x] Policy-record questions (expiry, renewal, payments) through a policy API
 - [x] Evaluation set, scorers, MLflow run, CI gate
 - [x] Databricks Asset Bundle: ingestion job, AI Gateway endpoint, Databricks App
-- [ ] Deployed to an Azure Databricks workspace
+- [ ] Deployed to a Databricks workspace
 - [ ] More forms (real specimen forms kept locally in `data/forms/private/`)
 
 ## Run it locally
@@ -100,19 +123,27 @@ The Groq model is configurable with `CL_GROQ_MODEL` in `.env` (default
 The agent only depends on a small LLM interface (`agent/llm.py`), so other providers can be
 added as another client class.
 
-## Deploy to Azure Databricks
+## Deploy to Databricks
 
-1. Create a secret scope `clauselens` with key `groq-api-key`.
-2. Set your workspace URL in `databricks.yml`.
-3. `databricks bundle deploy -t dev`, then `databricks bundle run ingest_forms -t dev`
-   to build the clauses table and Vector Search index.
-4. Grant the app's service principal `SELECT` on `clauselens_dev.policies.clauses` and
-   `CAN_USE` on the Vector Search endpoint, then `databricks bundle run clauselens_app -t dev`.
-5. For CI deploys, add `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and
-   `DATABRICKS_HOST` as GitHub environment secrets (OIDC federated credential) and run
-   the "Deploy to Azure Databricks" workflow.
+The bundle (`databricks.yml` + `resources/`) creates a Unity Catalog schema, a serving
+endpoint with AI Gateway in front of Groq, an ingestion job, and the Databricks App.
+Target `trial` is a Databricks-hosted workspace deployed from a laptop; target `azure` is an
+Azure Databricks workspace deployed from GitHub Actions with OIDC.
 
-Vector Search endpoints and Apps bill while running; delete or stop them after testing.
+1. Sign in: `databricks auth login --host <workspace URL>`.
+2. Store the Groq key as a secret (never in code):
+   `databricks secrets create-scope clauselens`, then
+   `databricks secrets put-secret clauselens groq-api-key` and paste the key when prompted.
+3. Set the SQL warehouse id (`warehouse_id`) in `databricks.yml`; the app reads
+   `policy_records` through it.
+4. `databricks bundle validate`, then `databricks bundle deploy`.
+5. `databricks bundle run ingest_forms` builds the `clauses` and `policy_records` tables and
+   the Vector Search index.
+6. Give the app's service principal `USE CATALOG`, `USE SCHEMA` and `SELECT` on the schema,
+   then `databricks bundle run clauselens_app`.
+
+Vector Search endpoints and Apps bill while running; stop or delete them after testing
+(`databricks bundle destroy` removes everything the bundle created).
 
 ## Repo layout
 
@@ -122,6 +153,7 @@ src/clauselens/
 ├── parsing/         # structure-aware policy parser
 ├── retrieval/       # clause store interface + Chroma / Vector Search implementations
 ├── agent/           # LangGraph coverage agent
+├── policies/        # policy records: file / HTTP API / Unity Catalog, plus a sample API
 ├── app/             # Streamlit UI (deployed as a Databricks App)
 └── eval/            # coverage question set + MLflow scorers
 notebooks/           # Databricks ingestion notebook
@@ -129,6 +161,7 @@ resources/           # bundle resources: ingest job, AI Gateway endpoint, app
 databricks.yml, app.yaml, requirements.txt   # bundle root, app runtime config
 .github/workflows/   # CI (tests, eval gate) and CD (bundle deploy)
 data/forms/          # synthetic sample forms (see data/forms/SOURCES.md)
+data/policies/       # synthetic sample policy records
 docs/DESIGN.md       # design decisions
 ```
 

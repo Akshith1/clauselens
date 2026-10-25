@@ -33,6 +33,11 @@ class Settings:
     vs_endpoint: str
     # Retrieval
     top_k: int
+    # Customer policy records ("file", "http" or "databricks")
+    policy_source: str
+    policies_file: Path
+    policy_api_url: str
+    warehouse_id: str
 
     @property
     def clauses_table(self) -> str:
@@ -41,6 +46,10 @@ class Settings:
     @property
     def vs_index(self) -> str:
         return f"{self.catalog}.{self.schema}.clauses_index"
+
+    @property
+    def policies_table(self) -> str:
+        return f"{self.catalog}.{self.schema}.policy_records"
 
 
 def get_settings() -> Settings:
@@ -53,8 +62,13 @@ def get_settings() -> Settings:
         store=env("CL_LOCAL_STORE", "chroma"),
         chroma_dir=Path(env("CL_CHROMA_DIR", str(REPO_ROOT / "data" / "chroma"))),
         forms_dir=Path(env("CL_FORMS_DIR", str(REPO_ROOT / "data" / "forms"))),
-        catalog=env("CL_CATALOG", "clauselens_dev"),
-        schema=env("CL_SCHEMA", "policies"),
+        catalog=env("CL_CATALOG", "workspace"),
+        schema=env("CL_SCHEMA", "clauselens"),
         vs_endpoint=env("CL_VS_ENDPOINT", "clauselens-vs"),
         top_k=int(env("CL_TOP_K", "6")),
+        policy_source=env("CL_POLICY_SOURCE", "file"),
+        policies_file=Path(env("CL_POLICIES_FILE",
+                               str(REPO_ROOT / "data" / "policies" / "sample_policies.json"))),
+        policy_api_url=env("CL_POLICY_API_URL", "http://localhost:8600"),
+        warehouse_id=env("CL_WAREHOUSE_ID", ""),
     )

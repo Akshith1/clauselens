@@ -1,5 +1,8 @@
 name: Deploy to Azure Databricks
 
+# For the Databricks-hosted trial workspace, deploy from your laptop instead
+# (databricks bundle deploy -t trial); see README.
+
 # Manual for now: Vector Search and the app bill by the hour, so deploy when you need them.
 on:
   workflow_dispatch:
@@ -23,9 +26,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - uses: databricks/setup-cli@main
-      - run: databricks bundle validate -t dev
-      - run: databricks bundle deploy -t dev
+      - run: databricks bundle validate -t azure
+      - run: databricks bundle deploy -t azure
       - name: Refresh clauses and index
-        run: databricks bundle run ingest_forms -t dev
+        run: databricks bundle run ingest_forms -t azure
       - name: Start the app
-        run: databricks bundle run clauselens_app -t dev
+        run: databricks bundle run clauselens_app -t azure

@@ -11,10 +11,10 @@ include:
 variables:
   catalog:
     description: Unity Catalog catalog for ClauseLens data
-    default: clauselens_dev
+    default: workspace
   schema:
-    description: Schema holding the clauses table and index
-    default: policies
+    description: Schema holding the clauses, policy records and index
+    default: clauselens
   vs_endpoint:
     description: Vector Search endpoint name
     default: clauselens-vs
@@ -24,10 +24,25 @@ variables:
   llm_endpoint:
     description: Serving endpoint (with AI Gateway) that fronts Groq
     default: clauselens-llm
+  groq_model:
+    description: Groq model served behind the endpoint
+    default: openai/gpt-oss-120b
+  warehouse_id:
+    description: SQL warehouse the app uses to read the policy_records table
+    default: "replace-with-your-warehouse-id"
 
 targets:
-  dev:
-    mode: development
+  # Databricks-hosted trial workspace (express setup). Deploy from your laptop:
+  #   databricks bundle deploy -t trial
+  trial:
     default: true
+    workspace:
+      host: https://dbc-227da525-3f72.cloud.databricks.com
+      profile: clauselens
+    variables:
+      warehouse_id: 90a3a8ac138ab3ec   # Serverless Starter Warehouse
+  # An Azure Databricks workspace, deployed by .github/workflows/cd.yml (GitHub OIDC).
+  azure:
+    mode: development
     workspace:
       host: https://adb-0000000000000000.0.azuredatabricks.net   # replace with your workspace URL

@@ -64,4 +64,9 @@ class FakeLLM:
                     "answer": f"The endorsement deletes the sewer backup exclusion [{ref}].",
                     "effects": [{"ref": ref, "action": "deletes",
                                  "summary": "Removes the water backup exclusion."}]}
+        if system == prompts.ACCOUNT_SYSTEM:
+            self.calls.append("account")
+            ref = self._ref(user, "expiration date", prefix="P")
+            return {"answer": f"Your policy expires on the date shown [{ref}]. "
+                              f"Nothing to cite here."}
         raise AssertionError("unexpected prompt")

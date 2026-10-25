@@ -13,8 +13,8 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "clauselens_dev")
-dbutils.widgets.text("schema", "policies")
+dbutils.widgets.text("catalog", "workspace")
+dbutils.widgets.text("schema", "clauselens")
 dbutils.widgets.text("vs_endpoint", "clauselens-vs")
 dbutils.widgets.text("embedding_endpoint", "databricks-gte-large-en")
 
@@ -51,6 +51,42 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
     .saveAsTable(table))
 spark.sql(f"ALTER TABLE {table} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)")
 display(spark.table(table).groupBy("form_number", "section_type").count())
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Sample customer policy records (synthetic) → `<catalog>.<schema>.policy_records`.
+# MAGIC The app reads this table through a SQL warehouse to answer questions like
+# MAGIC "when does my policy expire?". In a real company this table would be fed from the
+# MAGIC policy administration system instead.
+
+# COMMAND ----------
+
+import json
+
+from pyspark.sql import types as T
+
+policy_fields = [
+    ("policy_number", T.StringType()), ("insured_name", T.StringType()),
+    ("form", T.StringType()), ("endorsements", T.StringType()), ("status", T.StringType()),
+    ("effective_date", T.StringType()), ("expiration_date", T.StringType()),
+    ("annual_premium", T.DoubleType()), ("renewal_premium", T.DoubleType()),
+    ("renewal_offer_date", T.StringType()), ("deductible", T.DoubleType()),
+    ("coverage_a_limit", T.DoubleType()), ("payment_plan", T.StringType()),
+    ("next_payment_due", T.StringType()), ("next_payment_amount", T.DoubleType()),
+]
+policy_schema = T.StructType([T.StructField(n, t) for n, t in policy_fields])
+policies = json.loads((repo_root / "data" / "policies" / "sample_policies.json").read_text())
+policy_rows = [
+    tuple(json.dumps(p.get(n) or []) if n == "endorsements"
+          else (float(p[n]) if t == T.DoubleType() and p.get(n) is not None else p.get(n))
+          for n, t in policy_fields)
+    for p in policies]
+(spark.createDataFrame(policy_rows, policy_schema)
+    .write.mode("overwrite")
+    .option("overwriteSchema", "true")
+    .saveAsTable(f"{catalog}.{schema}.policy_records"))
+display(spark.table(f"{catalog}.{schema}.policy_records"))
 
 # COMMAND ----------
 

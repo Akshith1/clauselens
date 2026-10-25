@@ -1,6 +1,7 @@
 """The coverage agent: a LangGraph pipeline over the clause store.
 
     classify ─┬─> retrieve -> define -> draft -> endorsements -> audit -> END
+              ├─> account (the customer's policy record) ────────────────> END
               └─> refuse (out of scope) ─────────────────────────────────> END
 
 See docs/DESIGN.md section 7.
@@ -26,6 +27,7 @@ from clauselens.models import (
     SectionType,
     Verdict,
 )
+from clauselens.policies.records import PolicyRecord, PolicySystem, record_fields
 from clauselens.retrieval.base import ClauseRecord, ClauseStore
 
 log = logging.getLogger(__name__)
@@ -54,12 +56,15 @@ RETRIEVAL_PLAN: dict[QuestionType, list[tuple[list[SectionType], int]]] = {
 
 OUT_OF_SCOPE_REPLY = ("ClauseLens answers questions about what policy wording says: coverage, "
                       "definitions and limits. This question is outside that scope.")
+NO_POLICY_REPLY = ("To answer questions about your own policy, like dates, premium or payments, "
+                   "pick your policy under \"Your policy\" in the sidebar.")
 
 
 class AgentState(TypedDict, total=False):
     question: str
     forms: list[str]
     endorsements: list[str]
+    policy_number: str | None
     question_type: QuestionType
     search_query: str
     clauses: list[ClauseRecord]                 # numbered [1]..[n] in prompts
@@ -74,35 +79,49 @@ class AgentState(TypedDict, total=False):
 
 
 class CoverageAgent:
-    def __init__(self, store: ClauseStore, llm: LLM, top_k: int = 6) -> None:
-        self.store, self.llm, self.top_k = store, llm, top_k
+    def __init__(self, store: ClauseStore, llm: LLM, top_k: int = 6,
+                 policies: PolicySystem | None = None) -> None:
+        self.store, self.llm, self.top_k, self.policies = store, llm, top_k, policies
         self.graph = self._build()
 
     # ---- public API ---------------------------------------------------------------
 
-    def ask(self, question: str, forms: list[str],
-            endorsements: list[str] | None = None) -> CoverageAnswer:
+    def ask(self, question: str, forms: list[str] | None = None,
+            endorsements: list[str] | None = None,
+            policy_number: str | None = None) -> CoverageAnswer:
+        """Answer a question. With a policy number and no forms given, the policy's own
+        form and endorsements are used."""
+        if policy_number and not forms:
+            record = self._policy(policy_number)
+            if record:
+                forms, endorsements = [record.form], list(record.endorsements)
         state = self.graph.invoke(
-            {"question": question, "forms": forms, "endorsements": endorsements or []})
+            {"question": question, "forms": forms or [], "endorsements": endorsements or [],
+             "policy_number": policy_number})
         return state["result"]
+
+    def _policy(self, policy_number: str) -> PolicyRecord | None:
+        if not self.policies:
+            return None
+        return self.policies.get_policy(policy_number)
 
     # ---- graph --------------------------------------------------------------------
 
     def _build(self):
         g = StateGraph(AgentState)
         for name in ("classify", "retrieve", "define", "draft", "endorsements", "audit",
-                     "refuse"):
+                     "account", "refuse"):
             g.add_node(name, getattr(self, f"_{name}"))
         g.set_entry_point("classify")
-        g.add_conditional_edges(
-            "classify",
-            lambda s: "refuse" if s["question_type"] == QuestionType.OUT_OF_SCOPE else "retrieve",
-            {"refuse": "refuse", "retrieve": "retrieve"})
+        g.add_conditional_edges("classify", _route,
+                                {"refuse": "refuse", "account": "account",
+                                 "retrieve": "retrieve"})
         g.add_edge("retrieve", "define")
         g.add_edge("define", "draft")
         g.add_edge("draft", "endorsements")
         g.add_edge("endorsements", "audit")
         g.add_edge("audit", END)
+        g.add_edge("account", END)
         g.add_edge("refuse", END)
         return g.compile()
 
@@ -226,12 +245,52 @@ class CoverageAgent:
         )
         return {"result": result}
 
+    def _account(self, state: AgentState) -> AgentState:
+        """Answer from the customer's policy record, citing each field used as [Pn]."""
+        def reply(text: str) -> AgentState:
+            return {"result": CoverageAnswer(QuestionType.ACCOUNT, Verdict.CANNOT_DETERMINE,
+                                             text)}
+
+        number = state.get("policy_number")
+        if not number or not self.policies:
+            return reply(NO_POLICY_REPLY)
+        try:
+            record = self.policies.get_policy(number)
+        except Exception as exc:
+            log.warning("policy system error: %s", exc)
+            return reply("ClauseLens couldn't reach the policy system just now. "
+                         "Please try again in a moment.")
+        if record is None:
+            return reply(f"Policy {number} wasn't found in the policy system.")
+
+        fields = record_fields(record)
+        labels = {f"P{i}": f for i, f in enumerate(fields, 1)}
+        user = (f"Question: {state['question']}\n\nPolicy record:\n"
+                + "\n".join(f"[{ref}] {label}: {value}"
+                            for ref, (_, label, value) in labels.items()))
+        out = self.llm.complete_json(prompts.ACCOUNT_SYSTEM, user)
+        checked = audit(out.get("answer", ""), set(labels))
+        citations = [Citation(record.policy_number, "Policy record", labels[r][1],
+                              f"{labels[r][1]}: {labels[r][2]}", ref=r)
+                     for r in checked.refs]
+        verdict = Verdict.CANNOT_DETERMINE if checked.refused else Verdict.ANSWERED
+        return {"result": CoverageAnswer(QuestionType.ACCOUNT, verdict, checked.answer,
+                                         citations=citations)}
+
     def _refuse(self, state: AgentState) -> AgentState:
         return {"result": CoverageAnswer(QuestionType.OUT_OF_SCOPE, Verdict.CANNOT_DETERMINE,
                                          OUT_OF_SCOPE_REPLY)}
 
 
 # ---- helpers ------------------------------------------------------------------------
+
+def _route(state: AgentState) -> str:
+    if state["question_type"] == QuestionType.OUT_OF_SCOPE:
+        return "refuse"
+    if state["question_type"] == QuestionType.ACCOUNT:
+        return "account"
+    return "retrieve"
+
 
 def _number(records: list[ClauseRecord], prefix: str) -> str:
     return "\n".join(
@@ -291,6 +350,8 @@ def _quoted(text: str) -> list[str]:
 
 
 _LIMIT_WORDS = ("limit", "how much", "deductible", "maximum", "most we will pay", "$", "percent")
+_ACCOUNT_WORDS = ("expire", "expiration", "renewal", "renew", "premium", "payment",
+                  "policy number", "my policy start", "when does my", "how much do i pay")
 _CONDITION_WORDS = ("how long", "deadline", "notice", "proof of loss", "duties", "must i",
                     "do i have to", "within", "cancel", "settle")
 
@@ -299,6 +360,8 @@ def _heuristic_type(question: str) -> QuestionType:
     q = question.lower()
     if any(w in q for w in ("what does", "mean", "definition", "defined")):
         return QuestionType.DEFINITION
+    if any(w in q for w in _ACCOUNT_WORDS):
+        return QuestionType.ACCOUNT
     if any(w in q for w in _CONDITION_WORDS):
         return QuestionType.CONDITION
     if any(w in q for w in _LIMIT_WORDS):

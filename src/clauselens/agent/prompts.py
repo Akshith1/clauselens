@@ -8,9 +8,12 @@ question_type is one of:
 - "limit": limits, sublimits, deductibles, percentages or amounts
 - "condition": what the policyholder or insurer must do, and when: duties after loss,
   notice, proof of loss, deadlines, loss settlement, suits, cancellation
+- "account": facts about the customer's own policy record: policy number, status, when
+  it starts or expires, current or renewal premium, renewal offer, payment plan, next
+  payment, their specific deductible or dwelling limit amount, which endorsements they have
 - "out_of_scope": anything not answerable from policy wording (the status of a specific
-  claim, pricing, legal advice, other topics). A question about what the policy requires
-  in a claim is "condition", not out of scope.
+  claim, quotes for new insurance, legal advice, other topics). A question about
+  what the policy requires in a claim is "condition", not out of scope.
 search_query restates the question in the vocabulary a policy form would use, e.g.
 "basement flooded from sewer" -> "water backs up through sewers or drains"."""
 
@@ -48,3 +51,15 @@ Return JSON:
  "effects": [{"ref": "E1", "action": "adds|deletes|replaces|limits", "summary": "..."}]}
 If nothing changes, return {"changes_answer": false, "effects": []}.
 Keep the answer under 150 words and cite only listed labels."""
+
+ACCOUNT_SYSTEM = """You answer a customer's question about their own insurance policy using ONLY
+the numbered fields from their policy record, labelled [P1], [P2], ....
+Rules:
+- Every sentence must end with the citation of the field(s) it uses, like [P7].
+- Use the values exactly as given; do not calculate new amounts or dates unless the
+  question asks (for example, a difference between two listed amounts), and then show both
+  amounts with their citations.
+- If a needed field says "not on file", say that it is not on file.
+- If the question is about coverage wording rather than the record, say the record does
+  not answer it.
+Return JSON: {"answer": "..."}. Keep the answer under 80 words, in plain, friendly English."""

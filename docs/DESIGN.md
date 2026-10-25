@@ -18,7 +18,7 @@ as generic text.
 - Answer coverage, definition, and limit questions with clause-level citations.
 - Detect endorsement overrides and say how they change the answer.
 - Refuse when the documents don't support an answer.
-- Run the same agent locally and on Azure Databricks with only a config change.
+- Run the same agent locally and on Databricks (Azure or Databricks-hosted) with only a config change.
 
 **Non-goals**
 - Claims adjudication or binding coverage decisions. Answers are informational.
@@ -83,15 +83,28 @@ misses happen.
 6. **Citation audit**: each sentence must map to a cited clause span; unsupported
    sentences are removed, and if nothing remains the verdict is `cannot_determine`.
 
+**Account questions** ("when does my policy expire?", "what will my renewal cost?") skip
+retrieval. The agent fetches the selected policy's record from the policy system, numbers
+its fields `[P1]…[Pn]`, asks the model to answer using only those fields, and runs the same
+citation audit. With no policy selected it asks the user to pick one; it never guesses a
+date or amount. Selecting a policy also sets the form and endorsements used for coverage
+questions.
+
+The policy system is an interface with three implementations: a JSON file, an HTTP client
+for a policy API (a stdlib mock is included in `policies/api.py`), and a Unity Catalog
+table read through a SQL warehouse. All records are synthetic. A real deployment would
+point the HTTP client at an existing policy service; quoting new insurance is out of scope.
+
 ## 8. Platform and deployment
 
-| Concern | Local development | Azure Databricks |
+| Concern | Local development | Databricks |
 |---|---|---|
-| Clause store | Chroma, on disk | Unity Catalog Delta table `clauselens_dev.policies.clauses` |
+| Clause store | Chroma, on disk | Unity Catalog Delta table `workspace.clauselens.clauses` |
 | Retrieval | Chroma similarity + metadata filters | Databricks Vector Search (Delta Sync index) |
 | LLM | Llama via Groq, key from `.env` | Llama via Groq, called through Databricks AI Gateway (guardrails, usage logging, key in a secret scope) |
 | Agent | LangGraph | LangGraph (same code) |
 | UI | Streamlit, run locally | Streamlit as a Databricks App |
+| Policy records | JSON file or sample HTTP policy API | Unity Catalog table `policy_records` via SQL warehouse |
 | Ingestion | Python CLI | Databricks job / notebook writing to Unity Catalog |
 | Deploy | — | Databricks Asset Bundle, deployed from GitHub Actions with OIDC (no stored cloud secrets) |
 
@@ -102,7 +115,8 @@ client; the agent code doesn't change between environments.
 
 A hand-written question set over the public forms, each with expected verdict and
 expected clause ids. Run with MLflow evaluation: custom scorers for verdict accuracy,
-citation precision/recall, endorsement effect detection, and refusal correctness, plus
+citation precision/recall, endorsement effect detection, refusal correctness, and
+correct dates and amounts for policy-record questions, plus
 built-in groundedness and relevance judges. GitHub Actions fails the build below agreed
 thresholds.
 

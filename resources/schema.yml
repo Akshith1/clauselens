@@ -1,0 +1,8 @@
+# Unity Catalog schema for ClauseLens: clauses, policy_records, the Vector Search index and
+# the model endpoint's payload table all live here.
+resources:
+  schemas:
+    clauselens_schema:
+      catalog_name: ${var.catalog}
+      name: ${var.schema}
+      comment: ClauseLens sample data (synthetic policy forms and policy records)

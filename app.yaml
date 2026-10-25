@@ -8,8 +8,12 @@ env:
   - name: CL_GATEWAY_ENDPOINT
     valueFrom: llm
   - name: CL_CATALOG
-    value: clauselens_dev
+    value: workspace
   - name: CL_SCHEMA
-    value: policies
+    value: clauselens
   - name: CL_VS_ENDPOINT
     value: clauselens-vs
+  - name: CL_POLICY_SOURCE
+    value: databricks
+  - name: CL_WAREHOUSE_ID
+    valueFrom: warehouse

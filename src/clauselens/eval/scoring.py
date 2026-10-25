@@ -61,11 +61,22 @@ def endorsement_detected(output: dict, expected: dict) -> bool | None:
     return bool(output["endorsement_effects"])
 
 
+def fact_match(output: dict, expected: dict) -> bool | None:
+    """Policy-record answers must state the right values. Each entry in expected_facts is a
+    list of acceptable spellings, e.g. ["2027-03-15", "March 15, 2027"]."""
+    facts = expected.get("expected_facts")
+    if not facts:
+        return None
+    text = output["answer"].lower()
+    return all(any(alt.lower() in text for alt in options) for options in facts)
+
+
 SCORERS = {
     "verdict_match": verdict_match,
     "citation_recall": citation_recall,
     "refusal_correct": refusal_correct,
     "endorsement_detected": endorsement_detected,
+    "fact_match": fact_match,
 }
 
 # CI fails if any metric's mean drops below its threshold.
@@ -74,6 +85,7 @@ THRESHOLDS = {
     "citation_recall": 0.70,
     "refusal_correct": 1.0,
     "endorsement_detected": 1.0,
+    "fact_match": 1.0,
 }
 
 
@@ -90,13 +102,16 @@ def summarize(rows: list[dict]) -> dict[str, float]:
 
 EXPECTED_LABEL = {
     "covered": "Covered", "not_covered": "Not covered", "depends": "Depends",
-    "cannot_determine": "Can't determine",
+    "cannot_determine": "Can't determine", "answered": "Answered from record",
 }
 
 
 def setup_label(q: dict) -> str:
-    forms = ", ".join(q["forms"])
-    return forms + (f" + {', '.join(q['endorsements'])}" if q["endorsements"] else "")
+    if q.get("policy"):
+        return f"Policy {q['policy']}"
+    forms = ", ".join(q.get("forms") or []) or "no policy picked"
+    endorsements = q.get("endorsements") or []
+    return forms + (f" + {', '.join(endorsements)}" if endorsements else "")
 
 
 def expected_label(q: dict) -> str:
@@ -105,7 +120,8 @@ def expected_label(q: dict) -> str:
 
 def run_one(agent, q: dict) -> dict:
     """Ask one question and score it. Returns a flat, JSON-safe row."""
-    output = answer_to_dict(agent.ask(q["question"], q["forms"], q["endorsements"]))
+    output = answer_to_dict(agent.ask(q["question"], q.get("forms"), q.get("endorsements"),
+                                      policy_number=q.get("policy")))
     row = {"id": q["id"], "question": q["question"], "setup": setup_label(q),
            "expected": expected_label(q), "verdict": output["verdict"],
            "answer": output["answer"]}

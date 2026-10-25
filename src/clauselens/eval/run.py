@@ -36,8 +36,9 @@ def run_mlflow(agent, questions: list[dict]) -> None:
     import mlflow
     from mlflow.genai.scorers import scorer
 
-    def predict(question: str, forms: list[str], endorsements: list[str]) -> dict:
-        return answer_to_dict(agent.ask(question, forms, endorsements))
+    def predict(question: str, forms: list[str], endorsements: list[str],
+                policy: str | None) -> dict:
+        return answer_to_dict(agent.ask(question, forms, endorsements, policy_number=policy))
 
     def wrap(name, fn):
         @scorer(name=name)
@@ -45,8 +46,9 @@ def run_mlflow(agent, questions: list[dict]) -> None:
             return fn(outputs, expectations)
         return _score
 
-    data = [{"inputs": {"question": q["question"], "forms": q["forms"],
-                        "endorsements": q["endorsements"]},
+    data = [{"inputs": {"question": q["question"], "forms": q.get("forms") or [],
+                        "endorsements": q.get("endorsements") or [],
+                        "policy": q.get("policy")},
              "expectations": {k: v for k, v in q.items()
                               if k.startswith("expect")}} for q in questions]
     mlflow.set_experiment("/Shared/clauselens-eval" if mlflow.get_tracking_uri()

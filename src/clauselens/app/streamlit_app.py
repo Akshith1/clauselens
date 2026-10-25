@@ -14,7 +14,7 @@ from clauselens.eval.scoring import (
     save_results,
     setup_label,
 )
-from clauselens.factory import build_agent
+from clauselens.factory import build_agent, build_policy_system
 from clauselens.models import CoverageAnswer, Verdict
 from clauselens.parsing.loader import load_catalog
 
@@ -23,6 +23,7 @@ VERDICT_STYLE = {
     Verdict.NOT_COVERED: ("Not covered", "red"),
     Verdict.DEPENDS: ("Depends on the facts", "orange"),
     Verdict.CANNOT_DETERMINE: ("Can't determine from the wording", "gray"),
+    Verdict.ANSWERED: ("From your policy record", "blue"),
 }
 
 EXAMPLES = [
@@ -30,6 +31,8 @@ EXAMPLES = [
     "What does \"occurrence\" mean?",
     "What is the special limit for jewelry stolen from my home?",
     "Is damage from an earthquake covered?",
+    "When does my policy expire?",
+    "What will my renewal cost?",
 ]
 
 
@@ -41,6 +44,19 @@ def _md(text: str) -> str:
 @st.cache_resource
 def _agent():
     return build_agent()
+
+
+@st.cache_resource
+def _policy_system():
+    return build_policy_system(get_settings())
+
+
+def _policies() -> list:
+    try:
+        return _policy_system().list_policies()
+    except Exception as exc:  # e.g. the policy API isn't running
+        st.sidebar.warning(f"Policy system unavailable: {exc}")
+        return []
 
 
 @st.cache_data
@@ -77,9 +93,10 @@ METRIC_LABELS = {
     "citation_recall": "Right clause cited",
     "refusal_correct": "Refuses off-topic",
     "endorsement_detected": "Spots add-on changes",
+    "fact_match": "Policy facts right",
 }
 VERDICT_WORDS = {"covered": "Covered", "not_covered": "Not covered", "depends": "Depends",
-                 "cannot_determine": "Can't determine"}
+                 "cannot_determine": "Can't determine", "answered": "Answered from record"}
 
 
 def _clause_cell(recall: float | None) -> str:
@@ -100,9 +117,9 @@ def _results_table(rows: list[dict]) -> None:
 
 def test_results_page() -> None:
     st.title("Test results")
-    st.caption("14 questions with known correct answers, run through ClauseLens to check it "
-               "answers correctly and cites the right clause.")
     questions = load_questions()
+    st.caption(f"{len(questions)} questions with known correct answers, run through ClauseLens "
+               "to check it answers correctly and cites the right clause or policy fact.")
     results = load_results()
 
     if results:
@@ -155,11 +172,23 @@ def main() -> None:
     titles = {e["form_number"]: e.get("title", "") for e in catalog}
 
     with st.sidebar:
-        st.header("Policy")
-        forms = st.multiselect("Base form", base_forms, default=base_forms[:1],
-                               format_func=lambda f: f"{f} — {titles[f]}")
-        attached = st.multiselect("Attached endorsements", endorsements,
-                                  format_func=lambda f: f"{f} — {titles[f]}")
+        st.header("Your policy")
+        records = {r.policy_number: r for r in _policies()}
+        policy_number = st.selectbox(
+            "Policy (sample data)", [None, *records], key="policy",
+            format_func=lambda n: "None — just browse the forms" if n is None
+            else records[n].label())
+        record = records.get(policy_number)
+        if record:
+            forms, attached = [record.form], list(record.endorsements)
+            st.caption(f"Status: {record.status}")
+            st.caption(f"Form: {record.form}")
+            st.caption("Endorsements: " + (", ".join(attached) or "none"))
+        else:
+            forms = st.multiselect("Base form", base_forms, default=base_forms[:1],
+                                   format_func=lambda f: f"{f} — {titles[f]}")
+            attached = st.multiselect("Attached endorsements", endorsements,
+                                      format_func=lambda f: f"{f} — {titles[f]}")
         st.divider()
         st.markdown("**Try asking**")
         for example in EXAMPLES:
@@ -172,7 +201,7 @@ def main() -> None:
         with st.chat_message("assistant"):
             _render(answer)
 
-    question = st.chat_input("Ask about coverage, a definition or a limit")
+    question = st.chat_input("Ask about coverage, a definition, a limit or your policy")
     question = question or st.session_state.pop("pending", None)
     if not question:
         return
@@ -181,7 +210,8 @@ def main() -> None:
         return
     st.chat_message("user").write(question)
     with st.chat_message("assistant"), st.spinner("Reading the policy…"):
-        answer = _agent().ask(question, forms=forms, endorsements=attached)
+        answer = _agent().ask(question, forms=forms, endorsements=attached,
+                              policy_number=policy_number)
         _render(answer)
     history.append((question, answer))
 

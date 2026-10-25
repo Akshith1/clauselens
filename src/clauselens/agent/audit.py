@@ -10,8 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-_REF = re.compile(r"\[(E?\d+)\]")
-_GROUPED = re.compile(r"\[((?:E?\d+)(?:\s*,\s*E?\d+)+)\]")
+_REF = re.compile(r"\[([EP]?\d+)\]")
+_GROUPED = re.compile(r"\[((?:[EP]?\d+)(?:\s*,\s*[EP]?\d+)+)\]")
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z(\"])")
 
 REFUSAL = ("The policy wording provided doesn't answer this question, so ClauseLens can't "

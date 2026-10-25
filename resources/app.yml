@@ -12,3 +12,8 @@ resources:
           serving_endpoint:
             name: ${resources.model_serving_endpoints.clauselens_llm.name}
             permission: CAN_QUERY
+        - name: warehouse
+          description: SQL warehouse for reading policy_records
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE

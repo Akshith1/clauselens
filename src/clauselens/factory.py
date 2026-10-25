@@ -35,8 +35,24 @@ def build_llm(settings: Settings | None = None):
     return GroqLLM(settings.groq_api_key, settings.groq_model)
 
 
+def build_policy_system(settings: Settings | None = None):
+    from clauselens.policies.records import (
+        DatabricksPolicySystem,
+        FilePolicySystem,
+        HttpPolicySystem,
+    )
+
+    settings = settings or get_settings()
+    if settings.policy_source == "http":
+        return HttpPolicySystem(settings.policy_api_url)
+    if settings.policy_source == "databricks":
+        return DatabricksPolicySystem(settings.policies_table, settings.warehouse_id)
+    return FilePolicySystem(settings.policies_file)
+
+
 def build_agent(settings: Settings | None = None):
     from clauselens.agent.graph import CoverageAgent
 
     settings = settings or get_settings()
-    return CoverageAgent(build_store(settings), build_llm(settings), top_k=settings.top_k)
+    return CoverageAgent(build_store(settings), build_llm(settings), top_k=settings.top_k,
+                         policies=build_policy_system(settings))

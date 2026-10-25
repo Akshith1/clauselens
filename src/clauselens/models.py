@@ -22,6 +22,7 @@ class Verdict(StrEnum):
     NOT_COVERED = "not_covered"
     DEPENDS = "depends"
     CANNOT_DETERMINE = "cannot_determine"
+    ANSWERED = "answered"        # answered from the customer's policy record
 
 
 class QuestionType(StrEnum):
@@ -29,6 +30,7 @@ class QuestionType(StrEnum):
     DEFINITION = "definition"
     LIMIT = "limit"
     CONDITION = "condition"
+    ACCOUNT = "account"          # the customer's own policy record: dates, premium, payments
     OUT_OF_SCOPE = "out_of_scope"
 
 

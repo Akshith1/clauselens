@@ -1,0 +1,53 @@
+[
+  {
+    "policy_number": "CLP-1001",
+    "insured_name": "Alex Sample",
+    "form": "CL-HO-01",
+    "endorsements": ["CL-HO-E1"],
+    "status": "Active",
+    "effective_date": "2026-03-15",
+    "expiration_date": "2027-03-15",
+    "annual_premium": 1840.00,
+    "renewal_premium": 1932.00,
+    "renewal_offer_date": null,
+    "deductible": 1000,
+    "coverage_a_limit": 350000,
+    "payment_plan": "Monthly",
+    "next_payment_due": "2026-11-15",
+    "next_payment_amount": 153.33
+  },
+  {
+    "policy_number": "CLP-1002",
+    "insured_name": "Jordan Example",
+    "form": "CL-HO-01",
+    "endorsements": [],
+    "status": "Active - renewal offered",
+    "effective_date": "2025-12-01",
+    "expiration_date": "2026-12-01",
+    "annual_premium": 1525.00,
+    "renewal_premium": 1610.00,
+    "renewal_offer_date": "2026-10-01",
+    "deductible": 1000,
+    "coverage_a_limit": 280000,
+    "payment_plan": "Annual",
+    "next_payment_due": "2026-12-01",
+    "next_payment_amount": 1610.00
+  },
+  {
+    "policy_number": "CLP-1003",
+    "insured_name": "Sam Placeholder",
+    "form": "CL-HO-01",
+    "endorsements": ["CL-HO-E1"],
+    "status": "Expired",
+    "effective_date": "2025-06-01",
+    "expiration_date": "2026-06-01",
+    "annual_premium": 2105.00,
+    "renewal_premium": null,
+    "renewal_offer_date": null,
+    "deductible": 2500,
+    "coverage_a_limit": 420000,
+    "payment_plan": "Semi-annual",
+    "next_payment_due": null,
+    "next_payment_amount": null
+  }
+]
