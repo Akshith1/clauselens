@@ -64,6 +64,9 @@ class FakeLLM:
                     "answer": f"The endorsement deletes the sewer backup exclusion [{ref}].",
                     "effects": [{"ref": ref, "action": "deletes",
                                  "summary": "Removes the water backup exclusion."}]}
+        if system == prompts.RECITE_SYSTEM:
+            self.calls.append("recite")
+            return {"answer": user.split("Answer to fix:\n", 1)[1].split("\n\n", 1)[0]}
         if system == prompts.ACCOUNT_SYSTEM:
             self.calls.append("account")
             ref = self._ref(user, "expiration date", prefix="P")

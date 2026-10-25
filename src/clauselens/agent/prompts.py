@@ -20,7 +20,10 @@ search_query restates the question in the vocabulary a policy form would use, e.
 DRAFT_SYSTEM = """You answer questions about insurance policy wording using ONLY the numbered
 policy clauses provided. Rules:
 - Every sentence must end with one or more citations like [2] or [1][4] pointing to the
-  clauses that support it. Never cite a number that is not listed.
+  clauses that support it, including the last sentence and any summary sentence. Never
+  cite a number that is not listed. Example: "Water that backs up through a drain is
+  excluded [3]. The exclusion applies however the water entered [1]."
+- Prefer the most specific clause (e.g. A.2.b) over its parent heading (A.2 or A).
 - Check exclusions and conditions, not only the coverage grant. An exclusion overrides a
   coverage grant unless the clauses say otherwise.
 - Use defined terms with their policy meaning.
@@ -63,3 +66,11 @@ Rules:
 - If the question is about coverage wording rather than the record, say the record does
   not answer it.
 Return JSON: {"answer": "..."}. Keep the answer under 80 words, in plain, friendly English."""
+
+RECITE_SYSTEM = """You fix citations in an answer about insurance policy wording. You get the
+question, the answer, and the numbered clauses the answer was based on ([1], [2], ... and
+endorsement clauses [E1], [E2], ...).
+Return the same answer with every sentence ending in the citation(s) of the clause(s) that
+support it, like [2] or [1][E3]. Keep the wording and meaning; do not add new claims.
+Remove any sentence that no listed clause supports. Never cite a number that is not listed.
+Return JSON: {"answer": "..."}"""

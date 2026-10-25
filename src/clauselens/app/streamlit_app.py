@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from clauselens.agent.graph import NO_POLICY_REPLY
 from clauselens.config import get_settings
 from clauselens.eval.scoring import (
     THRESHOLDS,
@@ -15,7 +16,7 @@ from clauselens.eval.scoring import (
     setup_label,
 )
 from clauselens.factory import build_agent, build_policy_system
-from clauselens.models import CoverageAnswer, Verdict
+from clauselens.models import CoverageAnswer, QuestionType, Verdict
 from clauselens.parsing.loader import load_catalog
 
 VERDICT_STYLE = {
@@ -65,7 +66,11 @@ def _catalog() -> list[dict]:
 
 
 def _render(answer: CoverageAnswer) -> None:
+    account = answer.question_type == QuestionType.ACCOUNT
     label, color = VERDICT_STYLE[answer.verdict]
+    if account and answer.verdict == Verdict.CANNOT_DETERMINE:
+        label = ("Pick a policy first" if answer.explanation == NO_POLICY_REPLY
+                 else "Not in your policy record")
     st.markdown(f"**:{color}[{label}]**")
     if answer.base_verdict and answer.base_verdict != answer.verdict:
         base_label, _ = VERDICT_STYLE[answer.base_verdict]
@@ -78,7 +83,8 @@ def _render(answer: CoverageAnswer) -> None:
             summary = _md(effect.summary)
             st.markdown(f"- `{effect.endorsement_form}` *{effect.action.value}*: {summary}")
     if answer.citations:
-        with st.expander(f"Cited clauses ({len(answer.citations)})"):
+        title = "Policy record fields" if account else "Cited clauses"
+        with st.expander(f"{title} ({len(answer.citations)})"):
             for c in answer.citations:
                 st.markdown(f"**[{c.ref}] {c.label()}**")
                 st.caption(_md(c.text))

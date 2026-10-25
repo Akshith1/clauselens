@@ -216,7 +216,17 @@ class CoverageAgent:
         clauses, extra = state["clauses"], state.get("endorsement_clauses", [])
         labels = {str(i): c for i, c in enumerate(clauses, 1)}
         labels |= {f"E{i}": c for i, c in enumerate(extra, 1)}
-        checked = audit(state.get("answer_text", ""), set(labels))
+        text = state.get("answer_text", "")
+        checked = audit(text, set(labels))
+        if checked.dropped and text:
+            # Some sentences had no citation. Ask the model once to cite (or remove) them,
+            # then audit again; keep whichever version loses fewer sentences.
+            fixed = self._recite(state["question"], text, clauses, extra)
+            if fixed:
+                rechecked = audit(fixed, set(labels))
+                if not rechecked.refused and len(rechecked.dropped) < len(checked.dropped):
+                    checked = rechecked
+        checked = _collapse_parents(checked, labels)
         verdict = Verdict.CANNOT_DETERMINE if checked.refused else state["verdict"]
 
         effects, seen_refs = [], set()
@@ -244,6 +254,18 @@ class CoverageAgent:
             base_verdict=state["draft_verdict"] if effects else None,
         )
         return {"result": result}
+
+    def _recite(self, question: str, text: str, clauses: list[ClauseRecord],
+                extra: list[ClauseRecord]) -> str:
+        user = (f"Question: {question}\n\nAnswer to fix:\n{text}\n\nPolicy clauses:\n"
+                + _number(clauses, ""))
+        if extra:
+            user += "\n\nEndorsement clauses:\n" + _number(extra, "E")
+        try:
+            return self.llm.complete_json(prompts.RECITE_SYSTEM, user).get("answer", "")
+        except Exception as exc:  # the audited original is still a safe answer
+            log.warning("re-citation failed: %s", exc)
+            return ""
 
     def _account(self, state: AgentState) -> AgentState:
         """Answer from the customer's policy record, citing each field used as [Pn]."""
@@ -290,6 +312,27 @@ def _route(state: AgentState) -> str:
     if state["question_type"] == QuestionType.ACCOUNT:
         return "account"
     return "retrieve"
+
+
+def _collapse_parents(checked, labels: dict[str, ClauseRecord]):
+    """When an answer cites both a clause and its parent heading (A.2.b and A.2 or A), point
+    the parent's references at the most specific cited clause, so each citation shows
+    distinct text instead of the same wording three times."""
+    def descendant(ref: str) -> str | None:
+        rec = labels[ref]
+        children = [r for r in checked.refs if r != ref
+                    and labels[r].form_number == rec.form_number
+                    and labels[r].section_heading == rec.section_heading
+                    and labels[r].clause_id.startswith(rec.clause_id + ".")]
+        return max(children, key=lambda r: len(labels[r].clause_id)) if children else None
+
+    mapping = {r: d for r in checked.refs if (d := descendant(r))}
+    if not mapping:
+        return checked
+    text = re.sub(r"\[([EP]?\d+)\]", lambda m: f"[{mapping.get(m.group(1), m.group(1))}]",
+                  checked.answer)
+    text = re.sub(r"(\[[EP]?\d+\])(?:\1)+", r"\1", text)
+    return type(checked)(text, [r for r in checked.refs if r not in mapping], checked.dropped)
 
 
 def _number(records: list[ClauseRecord], prefix: str) -> str:

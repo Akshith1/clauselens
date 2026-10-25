@@ -1,3 +1,4 @@
+from clauselens.agent import prompts
 from clauselens.agent.audit import REFUSAL, audit
 from clauselens.agent.graph import OUT_OF_SCOPE_REPLY, CoverageAgent
 from clauselens.eval.scoring import answer_to_dict, citation_recall
@@ -167,3 +168,40 @@ def test_gateway_client_targets_serving_endpoints_with_fresh_token():
     client = GatewayLLM("databricks-gpt-oss-120b", workspace=Workspace())._client()
     assert str(client.base_url).rstrip("/") == "https://dbc-123.cloud.databricks.com/serving-endpoints"
     assert client.api_key == "tok-1"
+
+
+def test_uncited_sentences_get_a_second_chance(store):
+    class Terse(FakeLLM):
+        def complete_json(self, system, user):
+            if system == prompts.DRAFT_SYSTEM:
+                self.calls.append("draft")
+                return {"verdict": "not_covered",
+                        "answer": "Backup through drains is excluded. So it is not covered "
+                                  f"[{self._ref(user, 'sewers')}]."}
+            if system == prompts.RECITE_SYSTEM:
+                self.calls.append("recite")
+                ref = self._ref(user.split("Policy clauses:", 1)[1], "sewers")
+                return {"answer": f"Backup through drains is excluded [{ref}]. "
+                                  f"So it is not covered [{ref}]."}
+            return super().complete_json(system, user)
+
+    llm = Terse()
+    answer = CoverageAgent(store, llm).ask(QUESTION, forms=["CL-HO-01"])
+    assert "recite" in llm.calls
+    assert answer.explanation.startswith("Backup through drains is excluded [")
+
+
+def test_parent_clause_refs_point_to_the_specific_clause():
+    from clauselens.agent.audit import AuditResult
+    from clauselens.agent.graph import _collapse_parents
+    from clauselens.retrieval.base import ClauseRecord
+
+    labels = {}
+    for ref, cid in (("5", "A.2.b"), ("6", "A.2"), ("7", "A")):
+        r = ClauseRecord.__new__(ClauseRecord)  # only the fields _collapse_parents reads
+        r.form_number, r.section_heading, r.clause_id = "CL-HO-01", "Exclusions", cid
+        labels[ref] = r
+    result = _collapse_parents(AuditResult("Not covered [5][6][7].", ["5", "6", "7"], []),
+                               labels)
+    assert result.answer == "Not covered [5]."
+    assert result.refs == ["5"]
