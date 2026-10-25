@@ -8,9 +8,9 @@ resources:
       source_code_path: ../
       resources:
         - name: llm
-          description: AI Gateway endpoint in front of Groq
+          description: Model serving endpoint the agent calls
           serving_endpoint:
-            name: ${resources.model_serving_endpoints.clauselens_llm.name}
+            name: ${var.llm_endpoint}
             permission: CAN_QUERY
         - name: warehouse
           description: SQL warehouse for reading policy_records

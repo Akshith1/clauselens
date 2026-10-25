@@ -7,6 +7,8 @@ the `search_text` column, so no embedding code runs in the app.
 
 from __future__ import annotations
 
+import os
+
 from clauselens.retrieval.base import ClauseRecord, ScoredClause
 
 _COLUMNS = ["record_id", "form_number", "form_title", "is_endorsement", "modifies",
@@ -14,11 +16,26 @@ _COLUMNS = ["record_id", "form_number", "form_title", "is_endorsement", "modifie
             "parent_path", "defines", "terms_used", "change"]
 
 
+def client_auth() -> dict:
+    """Credentials for the search client. In a notebook it authenticates automatically; a
+    Databricks App instead gets its service principal through DATABRICKS_CLIENT_ID /
+    DATABRICKS_CLIENT_SECRET / DATABRICKS_HOST, which the client must be given explicitly."""
+    client_id = os.getenv("DATABRICKS_CLIENT_ID")
+    secret = os.getenv("DATABRICKS_CLIENT_SECRET")
+    host = os.getenv("DATABRICKS_HOST", "")
+    if not (client_id and secret and host):
+        return {}
+    if not host.startswith("http"):
+        host = "https://" + host
+    return {"workspace_url": host.rstrip("/"), "service_principal_client_id": client_id,
+            "service_principal_client_secret": secret}
+
+
 class VectorSearchClauseStore:
     def __init__(self, endpoint: str, index_name: str) -> None:
         from databricks.vector_search.client import VectorSearchClient
 
-        self._index = VectorSearchClient(disable_notice=True).get_index(
+        self._index = VectorSearchClient(disable_notice=True, **client_auth()).get_index(
             endpoint_name=endpoint, index_name=index_name)
 
     def upsert(self, records: list[ClauseRecord]) -> None:

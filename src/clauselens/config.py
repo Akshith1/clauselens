@@ -22,7 +22,7 @@ class Settings:
     # LLM
     groq_api_key: str
     groq_model: str
-    gateway_endpoint: str        # Databricks serving endpoint (AI Gateway) in front of Groq
+    gateway_endpoint: str        # Databricks model serving endpoint the agent calls
     # Local clause store
     store: str                   # "chroma" or "memory"
     chroma_dir: Path

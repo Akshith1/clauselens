@@ -61,7 +61,7 @@ so coverage questions are answered against the right wording.
 | Layer | Local | Databricks |
 |---|---|---|
 | Clause store / retrieval | Chroma | Unity Catalog Delta table + Databricks Vector Search |
-| LLM | Groq, key in `.env` | Groq through Databricks AI Gateway (guardrails, usage logging) |
+| LLM | gpt-oss-120b via Groq, key in `.env` | Databricks-hosted gpt-oss-120b (trial), or Groq behind our own endpoint with AI Gateway (azure) |
 | UI | `streamlit run` | Databricks App |
 | Ingestion | Python CLI | Databricks job / notebook → Unity Catalog |
 | Deploy | — | Databricks Asset Bundle via GitHub Actions (OIDC) |
@@ -97,7 +97,7 @@ policy-record lookup (no API key needed). Model answers vary slightly between ru
 - [x] Streamlit UI
 - [x] Policy-record questions (expiry, renewal, payments) through a policy API
 - [x] Evaluation set, scorers, MLflow run, CI gate
-- [x] Databricks Asset Bundle: ingestion job, AI Gateway endpoint, Databricks App
+- [x] Databricks Asset Bundle: schema, ingestion job, Databricks App (plus an AI Gateway endpoint for Groq on the azure target)
 - [ ] Deployed to a Databricks workspace
 - [ ] More forms (real specimen forms kept locally in `data/forms/private/`)
 
@@ -125,15 +125,20 @@ added as another client class.
 
 ## Deploy to Databricks
 
-The bundle (`databricks.yml` + `resources/`) creates a Unity Catalog schema, a serving
-endpoint with AI Gateway in front of Groq, an ingestion job, and the Databricks App.
-Target `trial` is a Databricks-hosted workspace deployed from a laptop; target `azure` is an
-Azure Databricks workspace deployed from GitHub Actions with OIDC.
+The bundle (`databricks.yml` + `resources/`) creates a Unity Catalog schema, an ingestion
+job, and the Databricks App.
+
+- Target `trial` (default): a Databricks-hosted workspace, deployed from a laptop. The app
+  calls the Databricks-hosted `databricks-gpt-oss-120b` endpoint, the same open model used
+  through Groq locally, so no external key is needed.
+- Target `azure`: an Azure Databricks workspace, deployed from GitHub Actions with OIDC.
+  It also creates a serving endpoint that calls Groq, with AI Gateway usage tracking,
+  payload logging and rate limits; the Groq key is read from a Databricks secret.
 
 1. Sign in: `databricks auth login --host <workspace URL>`.
-2. Store the Groq key as a secret (never in code):
-   `databricks secrets create-scope clauselens`, then
-   `databricks secrets put-secret clauselens groq-api-key` and paste the key when prompted.
+2. Azure target only: store the Groq key as a secret (never in code) with
+   `databricks secrets create-scope clauselens` and
+   `databricks secrets put-secret clauselens groq-api-key --string-value <key>`.
 3. Set the SQL warehouse id (`warehouse_id`) in `databricks.yml`; the app reads
    `policy_records` through it.
 4. `databricks bundle validate`, then `databricks bundle deploy`.
@@ -157,7 +162,7 @@ src/clauselens/
 ├── app/             # Streamlit UI (deployed as a Databricks App)
 └── eval/            # coverage question set + MLflow scorers
 notebooks/           # Databricks ingestion notebook
-resources/           # bundle resources: ingest job, AI Gateway endpoint, app
+resources/           # bundle resources: schema, ingest job, app
 databricks.yml, app.yaml, requirements.txt   # bundle root, app runtime config
 .github/workflows/   # CI (tests, eval gate) and CD (bundle deploy)
 data/forms/          # synthetic sample forms (see data/forms/SOURCES.md)

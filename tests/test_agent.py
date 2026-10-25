@@ -137,3 +137,33 @@ def test_llm_retries_after_rate_limit(monkeypatch):
     assert Client().complete_json("system", "user") == {"ok": True}
     assert calls["n"] == 3
     assert llm_mod.retry_delay(RateLimited("try again in 1.5525s"), 0) == 2.0525
+
+
+def test_message_text_keeps_only_text_blocks():
+    from clauselens.agent.llm import message_text
+
+    blocks = [{"type": "reasoning", "summary": [{"text": "thinking"}]},
+              {"type": "text", "text": '{"answer": "ok"}'}]
+    assert message_text(blocks) == '{"answer": "ok"}'
+    assert message_text("plain") == "plain"
+    assert message_text(None) == ""
+
+
+def test_gateway_client_targets_serving_endpoints_with_fresh_token():
+    import pytest
+
+    pytest.importorskip("openai")  # only installed with the [databricks] extra
+    from clauselens.agent.llm import GatewayLLM
+
+    class Config:
+        host = "https://dbc-123.cloud.databricks.com/"
+
+        def authenticate(self):
+            return {"Authorization": "Bearer tok-1"}
+
+    class Workspace:
+        config = Config()
+
+    client = GatewayLLM("databricks-gpt-oss-120b", workspace=Workspace())._client()
+    assert str(client.base_url).rstrip("/") == "https://dbc-123.cloud.databricks.com/serving-endpoints"
+    assert client.api_key == "tok-1"

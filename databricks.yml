@@ -1,7 +1,8 @@
 # Databricks Asset Bundle for ClauseLens.
-#   databricks bundle validate -t dev
-#   databricks bundle deploy -t dev
-#   databricks bundle run ingest_forms -t dev
+#   databricks bundle validate              (target "trial" is the default)
+#   databricks bundle deploy
+#   databricks bundle run ingest_forms
+#   databricks bundle run clauselens_app
 bundle:
   name: clauselens
 
@@ -22,11 +23,11 @@ variables:
     description: Secret scope holding the Groq API key (key name "groq-api-key")
     default: clauselens
   llm_endpoint:
-    description: Serving endpoint (with AI Gateway) that fronts Groq
+    description: Serving endpoint the app calls for the model
     default: clauselens-llm
   groq_model:
-    description: Groq model served behind the endpoint
-    default: openai/gpt-oss-120b
+    description: Groq model behind the azure target's endpoint (no "/" allowed)
+    default: llama-3.3-70b-versatile
   warehouse_id:
     description: SQL warehouse the app uses to read the policy_records table
     default: "replace-with-your-warehouse-id"
@@ -41,8 +42,40 @@ targets:
       profile: clauselens
     variables:
       warehouse_id: 90a3a8ac138ab3ec   # Serverless Starter Warehouse
+      # Databricks-hosted gpt-oss-120b (the same open model used through Groq locally),
+      # governed by Unity Gateway; no external key needed.
+      llm_endpoint: databricks-gpt-oss-120b
   # An Azure Databricks workspace, deployed by .github/workflows/cd.yml (GitHub OIDC).
+  # Here the app calls Groq through our own serving endpoint with AI Gateway.
   azure:
     mode: development
     workspace:
       host: https://adb-0000000000000000.0.azuredatabricks.net   # replace with your workspace URL
+    # No PII guardrail: policy-record questions intentionally send the (synthetic) insured
+    # name and policy number to the model, which a PII block would reject.
+    resources:
+      model_serving_endpoints:
+        clauselens_llm:
+          name: ${var.llm_endpoint}
+          config:
+            served_entities:
+              - name: groq
+                external_model:
+                  name: ${var.groq_model}
+                  provider: openai
+                  task: llm/v1/chat
+                  openai_config:
+                    openai_api_base: https://api.groq.com/openai/v1
+                    openai_api_key: "{{secrets/${var.groq_secret_scope}/groq-api-key}}"
+          ai_gateway:
+            usage_tracking_config:
+              enabled: true
+            inference_table_config:
+              enabled: true
+              catalog_name: ${var.catalog}
+              schema_name: ${resources.schemas.clauselens_schema.name}
+              table_name_prefix: llm_payloads
+            rate_limits:
+              - calls: 60
+                key: user
+                renewal_period: minute

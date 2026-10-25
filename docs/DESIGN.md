@@ -101,7 +101,7 @@ point the HTTP client at an existing policy service; quoting new insurance is ou
 |---|---|---|
 | Clause store | Chroma, on disk | Unity Catalog Delta table `workspace.clauselens.clauses` |
 | Retrieval | Chroma similarity + metadata filters | Databricks Vector Search (Delta Sync index) |
-| LLM | Llama via Groq, key from `.env` | Llama via Groq, called through Databricks AI Gateway (guardrails, usage logging, key in a secret scope) |
+| LLM | gpt-oss-120b via Groq, key from `.env` | Databricks-hosted gpt-oss-120b (trial workspace), or Groq behind a serving endpoint with AI Gateway (usage logging, rate limits, key in a secret scope) |
 | Agent | LangGraph | LangGraph (same code) |
 | UI | Streamlit, run locally | Streamlit as a Databricks App |
 | Policy records | JSON file or sample HTTP policy API | Unity Catalog table `policy_records` via SQL warehouse |

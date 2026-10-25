@@ -23,3 +23,17 @@ def test_row_round_trip(store):
     again = ClauseRecord.from_row(record.to_row())
     assert again == record
     assert again.endorsement_change() is not None
+
+
+def test_search_client_uses_app_service_principal(monkeypatch):
+    from clauselens.retrieval.vector_search_store import client_auth
+
+    for name in ("DATABRICKS_CLIENT_ID", "DATABRICKS_CLIENT_SECRET", "DATABRICKS_HOST"):
+        monkeypatch.delenv(name, raising=False)
+    assert client_auth() == {}                      # notebook: automatic auth
+    monkeypatch.setenv("DATABRICKS_CLIENT_ID", "id")
+    monkeypatch.setenv("DATABRICKS_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("DATABRICKS_HOST", "dbc-123.cloud.databricks.com")
+    assert client_auth() == {"workspace_url": "https://dbc-123.cloud.databricks.com",
+                             "service_principal_client_id": "id",
+                             "service_principal_client_secret": "secret"}
